@@ -1,0 +1,25 @@
+# Multi-stage build for Go servers
+FROM golang:1.22-alpine AS builder
+
+WORKDIR /app
+COPY go.mod .
+# Copy source (context is the specific server dir)
+COPY . .
+
+RUN go build -ldflags="-s -w" -o server .
+
+# ─── Final minimal image ──────────────────────────────────────────────────────
+FROM alpine:3.20
+
+RUN apk add --no-cache wget ca-certificates tzdata
+
+WORKDIR /app
+COPY --from=builder /app/server .
+
+# Use non-root user
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+
+EXPOSE 8080 8081 8082
+
+CMD ["./server"]
